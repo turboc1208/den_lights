@@ -10,10 +10,10 @@ class den_lights(appapi.my_appapi):
     self.light_max=128
     self.light_dim=32
 
-    self.hi_temp=72
-    self.lo_temp=68
+    self.hi_temp=75
+    self.lo_temp=73
 
-    self.targets={"light.den_fan_light":{"triggers":{"light.den_fan_light":{"type":"light","bit":32,"onValue":"on"},
+    self.targets={"light.den_light_level":{"triggers":{"light.den_light_level":{"type":"light","bit":32,"onValue":"on"},
                                                         "input_boolean.someone_home":{"type":"tracker","bit":1,"onValue":"on"},
                                                         "media_player.dentv":{"type":"media","bit":8,"onValue":"on"},
                                                         "input_boolean.denmotion":{"type":"motion","bit":2,"onValue":"on"}},
@@ -22,11 +22,13 @@ class den_lights(appapi.my_appapi):
                                             "dimState":[41,42,43,45,46,47,57,58,59,61,62,63,105,106,107,109,110,111,121,122,123,125,126,127],
                                             "callback":self.light_state_handler,
                                             "overrides":["input_boolean.party_override"]},
-                 "light.den_fan":{"triggers":{"light.den_fan":{"type":"fan","bit":16,"onValue":"on"},
-                                                     "sensor.den_sensor_temperature_14_1":{"type":"temperature","bit":4,"onValue":"on"},
+                 "fan.den_fan_level":{"triggers":{"fan.den_fan_level":{"type":"fan","bit":16,"onValue":"on"},
+                                                     "sensor.den_sensor_temperature":{"type":"temperature","bit":4,"onValue":"on"},
                                                      "input_boolean.someone_home":{"type":"tracker","bit":1,"onValue":"home"}},
                                          "type":"fan",
-                                         "onState":[4,5,6,7,12,13,14,15,20,21,22,23,28,29,30,31,32,36,37,38,39,44,45,46,47,52,53,54,55,60,61,62,63,68,69,70,71,76,77,78,79,84,85,86,87,92,93,94,95,100,101,102,103,108,109,110,111,116,117,118,119,124,125,126,127],
+                                         "onState":[4,5,6,7,12,13,14,15,20,21,22,23,28,29,30,31,36,37,38,39,44,45,46,47,52,53,54,55,
+                                                    60,61,62,63,68,69,70,71,76,77,78,79,84,85,86,87,92,93,94,95,100,101,102,103,
+                                                    108,109,110,111,116,117,118,119,124,125,126,127],
                                          "dimState":[0],
                                          "callback":self.light_state_handler,
                                          "overrides":["input_boolean.party_override"]}}
@@ -44,7 +46,6 @@ class den_lights(appapi.my_appapi):
   # state change handler.  All it does is call process_light_state all the work is done there.
   #
   def light_state_handler(self,trigger,attr,old,new,kwargs):
-    self.log("trigger = {}, attr={}, old={}, new={}, kwargs={}".format(trigger,attr,old,new,kwargs))
     self.process_light_state(kwargs["target"],old,new)
 
 
@@ -67,7 +68,6 @@ class den_lights(appapi.my_appapi):
       bit = self.targets[target]["triggers"][trigger]["bit"]
       trigger_state = self.normalize_state(target,trigger,trigger_type)
     
-      self.log("trigger={} type={} onValue={} bit={} currentvalue={}".format(trigger,trigger_type,onValue,bit,trigger_state))
       # logical "or" value for this trigger to existing state bits.
       state=state | (bit if (trigger_state==onValue) else 0)
 
@@ -76,7 +76,6 @@ class den_lights(appapi.my_appapi):
       type_bits[trigger_type]=bit
 
 
-    self.log("state={}".format(state))
     if not self.check_overide_active(target):               # if the override bit is set, then don't evaluate anything else.  Think of it as manual mode.
       if not state in self.targets[target]["onState"]:     # if its not in on its off these states always result in light being turned off
         self.log("state = {} turning off light".format(state))
@@ -100,8 +99,8 @@ class den_lights(appapi.my_appapi):
   # normalize_state - take incoming states and convert any that are calculated to on/off values.
   #
   def normalize_state(self,target,trigger,type):
+    self.log("about to get state for {}, {}, {}, {}".format(trigger,type,self.lo_temp,self.hi_temp))
     newstate=self.get_state(trigger,type=type,min=self.lo_temp,max=self.hi_temp)
-    self.log("{} newstate={}".format(trigger,newstate))
     if newstate==None:                   # handle a newstate of none, typically means the object didn't exist.
       newstate=self.get_state(target)    # if thats the case, just return the state of the target so nothing changes.
     try:
